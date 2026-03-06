@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Omega M3U8 Stream Fix</title>
+  <title>Omega Stream Test</title>
   <style>
     body { margin:0; background:#000; color:#fff; font-family:Arial; text-align:center; }
     #status { padding:20px; font-size:20px; }
@@ -11,48 +11,39 @@
   </style>
 </head>
 <body>
-  <div id="status">Loading... Wait 10-20 sec. If black + spinner, try VLC or local server.</div>
+  <div id="status">Loading stream... (HTTPS proxy via allorigins)</div>
   <video id="video" controls autoplay playsinline></video>
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
     const video = document.getElementById('video');
     const status = document.getElementById('status');
+
+    // Proxy to bypass mixed content (HTTP on HTTPS page)
+    const proxy = 'https://api.allorigins.win/raw?url=';
     const streamUrl = 'http://103.229.254.25:7001/play/a0db/index.m3u8';
+    const proxiedUrl = proxy + encodeURIComponent(streamUrl);
 
     if (Hls.isSupported()) {
-      const hls = new Hls({
-        enableWorker: false,  // for mobile performance
-        lowLatencyMode: true  // for live streams
-      });
-      hls.loadSource(streamUrl);
+      const hls = new Hls();
+      hls.loadSource(proxiedUrl);
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        status.textContent = 'Stream loaded! Playing...';
+        status.textContent = 'Stream loaded via proxy! Playing...';
         video.play();
-      });
-      hls.on(Hls.Events.LEVEL_LOADED, () => {
-        status.textContent = 'Segments loading...';
       });
       hls.on(Hls.Events.ERROR, (event, data) => {
         status.textContent = `Error: ${data.type} - ${data.details}`;
         console.log('HLS Error:', data);
-        if (data.fatal) {
-          hls.destroy();
-          status.textContent += ' - Try VLC or local server.';
-        }
       });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = streamUrl;
+      video.src = proxiedUrl;
       video.addEventListener('loadedmetadata', () => {
-        status.textContent = 'Native HLS - playing!';
+        status.textContent = 'Native HLS via proxy - playing!';
         video.play();
       });
-      video.addEventListener('error', (e) => {
-        status.textContent = 'Native error: ' + e.message;
-      });
     } else {
-      status.textContent = 'Browser no HLS support. Use VLC.';
+      status.textContent = 'No HLS support. Try VLC.';
     }
   </script>
 </body>
