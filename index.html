@@ -3,63 +3,47 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Omega M3U8 Stream - Vercel Fix</title>
+  <title>Omega Stream - Video.js</title>
+  <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
   <style>
-    body { margin:0; background:#000; color:#fff; font-family:Arial; text-align:center; }
-    #status { padding:30px; font-size:24px; }
-    video { width:100vw; height:90vh; object-fit:cover; }
+    body { margin:0; background:#000; }
+    #status { color:#fff; text-align:center; padding:20px; font-size:20px; }
   </style>
 </head>
 <body>
-  <div id="status">Loading... (Vercel HTTPS + Proxy active). Wait 15-30 sec. If spinner, check network or server.</div>
-  <video id="video" controls autoplay playsinline></video>
+  <div id="status">Loading... (Video.js player)</div>
 
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <video
+    id="my-video"
+    class="video-js"
+    controls
+    preload="auto"
+    width="100%"
+    height="auto"
+    data-setup='{}'>
+  </video>
+
+  <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/videojs-contrib-hls/5.15.0/videojs-contrib-hls.min.js"></script>
   <script>
-    const video = document.getElementById('video');
+    const player = videojs('my-video');
     const status = document.getElementById('status');
 
-    // Strong proxy for HTTP on HTTPS
-    const proxy = 'https://api.allorigins.win/raw?url=';
-    const stream = 'http://103.229.254.25:7001/play/a0db/index.m3u8';
-    const proxied = proxy + encodeURIComponent(stream);
+    player.src({
+      src: 'http://103.229.254.25:7001/play/a0db/index.m3u8',
+      type: 'application/x-mpegURL'
+    });
 
-    if (Hls.isSupported()) {
-      const hls = new Hls({
-        enableWorker: false,
-        lowLatencyMode: true,
-        backBufferLength: 90,
-        maxMaxBufferLength: 600
+    player.ready(() => {
+      status.textContent = 'Player ready! Trying to play...';
+      player.play().catch(e => {
+        status.textContent = 'Play error: ' + e.message + ' - Try local server or VLC.';
       });
-      hls.loadSource(proxied);
-      hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        status.textContent = 'Stream parsed! Playing... 🔥';
-        video.play().catch(e => status.textContent = 'Autoplay blocked: ' + e.message);
-      });
-      hls.on(Hls.Events.LEVEL_LOADED, () => {
-        status.textContent = 'Segments loading... almost there!';
-      });
-      hls.on(Hls.Events.ERROR, (event, data) => {
-        status.textContent = `Error: ${data.type} - ${data.details}`;
-        console.log('HLS Error:', data);
-        if (data.fatal) {
-          hls.destroy();
-          status.textContent += ' - Server slow ya down. Try VLC.';
-        }
-      });
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = proxied;
-      video.addEventListener('loadedmetadata', () => {
-        status.textContent = 'Native HLS via proxy - playing!';
-        video.play();
-      });
-      video.addEventListener('error', (e) => {
-        status.textContent = 'Native error: ' + e.message;
-      });
-    } else {
-      status.textContent = 'Browser no HLS support. Use VLC or MX Player.';
-    }
+    });
+
+    player.on('error', () => {
+      status.textContent = 'Player error: ' + player.error().message;
+    });
   </script>
 </body>
 </html>
