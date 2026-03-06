@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Omega Stream Test</title>
+  <title>Omega M3U8 Stream - Vercel Fix</title>
   <style>
     body { margin:0; background:#000; color:#fff; font-family:Arial; text-align:center; }
-    #status { padding:20px; font-size:20px; }
-    video { width:100vw; height:80vh; object-fit:cover; }
+    #status { padding:30px; font-size:24px; }
+    video { width:100vw; height:90vh; object-fit:cover; }
   </style>
 </head>
 <body>
-  <div id="status">Loading stream... (HTTPS proxy via allorigins)</div>
+  <div id="status">Loading... (Vercel HTTPS + Proxy active). Wait 15-30 sec. If spinner, check network or server.</div>
   <video id="video" controls autoplay playsinline></video>
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
@@ -19,31 +19,46 @@
     const video = document.getElementById('video');
     const status = document.getElementById('status');
 
-    // Proxy to bypass mixed content (HTTP on HTTPS page)
+    // Strong proxy for HTTP on HTTPS
     const proxy = 'https://api.allorigins.win/raw?url=';
-    const streamUrl = 'http://103.229.254.25:7001/play/a0db/index.m3u8';
-    const proxiedUrl = proxy + encodeURIComponent(streamUrl);
+    const stream = 'http://103.229.254.25:7001/play/a0db/index.m3u8';
+    const proxied = proxy + encodeURIComponent(stream);
 
     if (Hls.isSupported()) {
-      const hls = new Hls();
-      hls.loadSource(proxiedUrl);
+      const hls = new Hls({
+        enableWorker: false,
+        lowLatencyMode: true,
+        backBufferLength: 90,
+        maxMaxBufferLength: 600
+      });
+      hls.loadSource(proxied);
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        status.textContent = 'Stream loaded via proxy! Playing...';
-        video.play();
+        status.textContent = 'Stream parsed! Playing... 🔥';
+        video.play().catch(e => status.textContent = 'Autoplay blocked: ' + e.message);
+      });
+      hls.on(Hls.Events.LEVEL_LOADED, () => {
+        status.textContent = 'Segments loading... almost there!';
       });
       hls.on(Hls.Events.ERROR, (event, data) => {
         status.textContent = `Error: ${data.type} - ${data.details}`;
         console.log('HLS Error:', data);
+        if (data.fatal) {
+          hls.destroy();
+          status.textContent += ' - Server slow ya down. Try VLC.';
+        }
       });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = proxiedUrl;
+      video.src = proxied;
       video.addEventListener('loadedmetadata', () => {
         status.textContent = 'Native HLS via proxy - playing!';
         video.play();
       });
+      video.addEventListener('error', (e) => {
+        status.textContent = 'Native error: ' + e.message;
+      });
     } else {
-      status.textContent = 'No HLS support. Try VLC.';
+      status.textContent = 'Browser no HLS support. Use VLC or MX Player.';
     }
   </script>
 </body>
